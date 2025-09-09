@@ -13,6 +13,10 @@ spec:
     metadata:
       labels:
         app: paymentservice
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "9090"
     spec:
       containers:
         - name: paymentservice
