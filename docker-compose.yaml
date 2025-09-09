@@ -1,0 +1,71 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - autoheal
+
+  userservice:
+    image: iampraveen6/userservice
+    container_name: userservice
+    env_file:
+      - ./backend/userservice/.env
+    depends_on:
+      - mongodb
+    networks:
+      - autoheal
+
+  projectservice:
+    image: iampraveen6/projectservice
+    container_name: projectservice
+    env_file:
+      - ./backend/projectservice/.env
+    depends_on:
+      - mongodb
+    networks:
+      - autoheal
+
+  paymentservice:
+    image: iampraveen6/paymentservice
+    container_name: paymentservice
+    env_file:
+      - ./backend/paymentservice/.env
+    depends_on:
+      - mongodb
+    networks:
+      - autoheal
+
+  frontend:
+    image: iampraveen6/frontend
+    container_name: frontend
+    networks:
+      - autoheal
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+    - "8080:80"      # host:container
+    volumes:
+    - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+    - frontend
+    - userservice
+    - projectservice
+    - paymentservice
+    networks:
+    - autoheal
+
+
+volumes:
+  mongo_data:
+
+networks:
+  autoheal:
+    external: true

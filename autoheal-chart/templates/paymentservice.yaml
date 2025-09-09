@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paymentservice
+  namespace: autoheal
+spec:
+  replicas: {{ .Values.paymentservice.replicas }}
+  selector:
+  selector:
+    matchLabels:
+      app: paymentservice
+  template:
+    metadata:
+      labels:
+        app: paymentservice
+    spec:
+      containers:
+        - name: paymentservice
+          image: "{{ .Values.paymentservice.image.repository }}:{{ .Values.paymentservice.image.tag }}"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3002  # Using port 3002 as per your secrets
+          env:
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PAYMENTSERVICE_MONGO_URI
+            - name: PORT
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PAYMENTSERVICE_PORT
+            - name: RAZORPAY_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PAYMENTSERVICE_RAZORPAY_KEY_ID
+            - name: RAZORPAY_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PAYMENTSERVICE_RAZORPAY_KEY_SECRET
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PAYMENTSERVICE_AWS_SECRET_ACCESS_KEY
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PAYMENTSERVICE_AWS_ACCESS_KEY_ID
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PAYMENTSERVICE_AWS_REGION
+            - name: S3_BUCKET_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PAYMENTSERVICE_S3_BUCKET_NAME
+            - name: DOWNLOAD_URL
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PAYMENTSERVICE_DOWNLOAD_URL
+            # Add Redis configuration if paymentservice needs it
+            - name: REDIS_HOST
+              value: "redis.autoheal.svc.cluster.local"
+            - name: REDIS_PORT
+              value: "6379"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paymentservice
+  namespace: autoheal
+spec:
+  selector:
+    app: paymentservice
+  ports:
+    - protocol: TCP
+      port: 3002
+      targetPort: 3002
+  type: NodePort

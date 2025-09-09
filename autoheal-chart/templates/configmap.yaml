@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: autoheal-config
+  namespace: autoheal
+data:
+  # Userservice
+  USERSERVICE_PORT: "3000"
+  USERSERVICE_DOWNLOAD_URL: "http://localhost:3000"
+
+  # Projectservice
+  PROJECTSERVICE_PORT: "3001"
+  PROJECTSERVICE_DOWNLOAD_URL: "http://localhost:3001"
+
+  # Paymentservice
+  PAYMENTSERVICE_PORT: "3002"
+  PAYMENTSERVICE_DOWNLOAD_URL: "http://localhost:3002"
+
+  # Frontend
+  FRONTEND_PORT: "8080"
+  FRONTEND_API_BASE_URL: "http://localhost:8080"   # You can point this to userservice API

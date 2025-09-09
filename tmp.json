@@ -1,0 +1,19 @@
+{
+    "apiVersion": "v1",
+    "kind": "Namespace",
+    "metadata": {
+        "creationTimestamp": "2025-09-09T15:51:54Z",
+        "labels": {
+            "kubernetes.io/metadata.name": "autoheal",
+            "name": "autoheal"
+        },
+        "name": "autoheal",
+        "resourceVersion": "347022",
+        "uid": "bed06c97-17c7-4f56-96ad-412b23359e06"
+    },
+    "spec": {
+            },
+    "status": {
+        "phase": "Active"
+    }
+}

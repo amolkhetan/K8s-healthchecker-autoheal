@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: projectservice
+  namespace: autoheal
+spec:
+  replicas: {{ .Values.projectservice.replicas }}
+  selector:
+    matchLabels:
+      app: projectservice
+  template:
+    metadata:
+      labels:
+        app: projectservice
+    spec:
+      containers:
+        - name: projectservice
+          image: "{{ .Values.projectservice.image.repository }}:{{ .Values.projectservice.image.tag }}"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3001
+          env:
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PROJECTSERVICE_MONGO_URI
+            - name: PORT
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PROJECTSERVICE_PORT
+            - name: RAZORPAY_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PROJECTSERVICE_RAZORPAY_KEY_ID
+            - name: RAZORPAY_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PROJECTSERVICE_RAZORPAY_KEY_SECRET
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PROJECTSERVICE_AWS_SECRET_ACCESS_KEY
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PROJECTSERVICE_AWS_ACCESS_KEY_ID
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PROJECTSERVICE_AWS_REGION
+            - name: S3_BUCKET_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PROJECTSERVICE_S3_BUCKET_NAME
+            - name: DOWNLOAD_URL
+              valueFrom:
+                secretKeyRef:
+                  name: autoheal-secrets
+                  key: PROJECTSERVICE_DOWNLOAD_URL
+            # Redis configuration - using HOST and PORT as required by your code
+            - name: REDIS_HOST
+              value: "redis.autoheal.svc.cluster.local"
+            - name: REDIS_PORT
+              value: "6379"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: projectservice
+  namespace: autoheal
+spec:
+  selector:
+    app: projectservice
+  ports:
+    - protocol: TCP
+      port: 3001
+      targetPort: 3001
+  type: NodePort

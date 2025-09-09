@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: autoheal
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80  # ✅ Change from 8080 to 80
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80  # ✅ Change from 8080 to 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80  # ✅ Change from 8080 to 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: autoheal
+spec:
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 80      # Service port (you can keep this as 80 or change to 8080 for external access)
+      targetPort: 80  # ✅ Must match container port 80
+  type: LoadBalancer
