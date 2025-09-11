@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: health-monitor
-  namespace: autobheal
+  namespace: autoheal
   labels:
     app: health-monitor
 spec:
