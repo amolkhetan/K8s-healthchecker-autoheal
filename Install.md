@@ -125,6 +125,13 @@ kubectl get pods -n kube-system
 kubectl get pods -n kube-flannel
 <img width="1915" height="387" alt="image" src="https://github.com/user-attachments/assets/07403e67-46b3-4f73-97dd-0a43b1d23558" />
 
+Prometheus:
+Run 
+kubectl port-forward svc/monitoring-kube-prometheus-prometheus 9090:9090 -n default
+
+access it on localhost:9090
+<img width="1918" height="709" alt="image" src="https://github.com/user-attachments/assets/d17f787c-0fa4-49b8-9044-2aaba48f19bf" />
+
 
 For testing Grafana and Prometheus
 Ran below on local where my key is present
