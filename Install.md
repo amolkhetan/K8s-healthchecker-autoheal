@@ -8,25 +8,34 @@
 
 2. 🧱Run below commands
    sudo apt update && sudo apt upgrade -y
+   
    sudo apt install -y curl bash-completion git apt-transport-https ca-certificates gnupg lsb-release
+   
    sudo swapoff -a
+   
    sudo sed -i '/swap/d' /etc/fstab
    
-3. 📦Install containerd (Applicable for all nodes)
+4. 📦Install containerd (Applicable for all nodes)
    sudo apt install -y containerd
+   
    sudo mkdir -p /etc/containerd
+   
    containerd config default | sudo tee /etc/containerd/config.toml
+
    sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+   
    sudo systemctl restart containerd
+
    sudo systemctl enable containerd
    
-4. 🧠Kernel Modules + Sysctl (Applicable for all nodes)
+6. 🧠Kernel Modules + Sysctl (Applicable for all nodes)
    cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
    overlay
    br_netfilter
    EOF
 
    sudo modprobe overlay
+   
    sudo modprobe br_netfilter
 
    cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
@@ -38,7 +47,7 @@
    sudo sysctl --system
 
 
-6. 🔧 Install Kubernetes Components (Applicable for all nodes)
+8. 🔧 Install Kubernetes Components (Applicable for all nodes)
    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | \
    gpg --dearmor | sudo tee /etc/apt/keyrings/kubernetes-apt-keyring.gpg > /dev/null
 
@@ -49,7 +58,7 @@
    sudo apt install -y kubelet kubeadm kubectl
    sudo apt-mark hold kubelet kubeadm kubectl
 
- 7. 🚦 Master Node Initialization
+ 9. 🚦 Master Node Initialization
     sudo kubeadm init --pod-network-cidr=10.244.0.0/16
 
     Post-init setup:
@@ -57,15 +66,15 @@
     sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
     sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
-8. 🌐 Pod Network (Flannel CNI)
+10. 🌐 Pod Network (Flannel CNI)
     kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
 
    AMI created for master is ami-07cd7e2b91f9e1923
    <img width="1625" height="339" alt="image" src="https://github.com/user-attachments/assets/8457d70f-a67c-45c6-aefb-926e94002d09" />
 
 
-10. Create and Add Worker Node
-   Repeat all Steps from 1-6 and the run step 9.
+11. Create and Add Worker Node
+   Repeat all Steps from 1-8 and the run step 11.
 
 AMI **ami-05540aeb6ec68ed3c** created for node which can we used for master or worker, according will need to run init or join comand after ec2 is launched.
 <img width="1606" height="258" alt="image" src="https://github.com/user-attachments/assets/908e3765-7248-4e62-a919-ce742925a9ff" />
@@ -74,7 +83,6 @@ AMI **ami-05540aeb6ec68ed3c** created for node which can we used for master or w
    Run on each worker:
    sudo kubeadm join <MASTER_IP>:6443 --token <TOKEN> \
   --discovery-token-ca-cert-hash sha256:<HASH>
-
 
    To join master node we need following details:
    - Token
@@ -112,6 +120,122 @@ AMI **ami-05540aeb6ec68ed3c** created for node which can we used for master or w
       <img width="940" height="110" alt="image" src="https://github.com/user-attachments/assets/0c3b592c-7f90-463e-8b4e-b7830b081208" />
       <img width="940" height="249" alt="image" src="https://github.com/user-attachments/assets/6e20192e-fd6a-4114-8b6a-e97b7ee79eeb" />
 
+
+**Define Folder Structure**
+
+Ran **mkdir -p k8s-health-checker/{cmd,pkg,scripts,dashboards,manifests,alerts} && touch k8s-health-checker/{Dockerfile,README.md,go.mod,requirements.txt}**
+to create below folder structure:
+
+k8s-health-checker/
+├── cmd/                  # Go entry points
+├── pkg/                  # Core logic: health checks, healing actions
+├── scripts/              # Python scripts for data processing
+├── manifests/            # Kubernetes YAMLs
+├── dashboards/           # Grafana JSON configs
+├── alerts/               # Prometheus alert rules
+├── Dockerfile
+├── go.mod / requirements.txt
+└── README.md
+
+Initialize 
+cd ~/k8s-health-checker
+
+git init
+
+sudo snap install go --classic
+
+go mod init github.com/your-org/k8s-health-checker
+
+sudo nano k8s-health-checker/manifests/rbac/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: health-checker
+  namespace: kube-system
+
+
+sudo nano k8s-health-checker/manifests/rbac/cluster-role-binding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: health-checker-binding
+subjects:
+- kind: ServiceAccount
+  name: health-checker
+  namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+
+  kubectl apply -f manifests/rbac/
+
+  mkdir -p  k8s-health-checker/pkg/client/
+  sudo nano client.go
+import (
+  "context"
+  "k8s.io/client-go/kubernetes"
+  "k8s.io/client-go/rest"
+)
+
+func getClient() *kubernetes.Clientset {
+  config, _ := rest.InClusterConfig()
+  clientset, _ := kubernetes.NewForConfig(config)
+  return clientset
+}
+
+  
+
+sudo snap install helm --classic
+
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+helm install monitoring prometheus-community/kube-prometheus-stack
+
+kube-prometheus-stack has been installed. Check its status by running:
+  kubectl --namespace default get pods -l "release=monitoring"
+
+Get Grafana 'admin' user password by running:
+
+  kubectl --namespace default get secrets monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo
+
+Access Grafana local instance:
+
+  export POD_NAME=$(kubectl --namespace default get pod -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=monitoring" -oname)
+  kubectl --namespace default port-forward $POD_NAME 3000
+
+Get your grafana admin user password by running:
+
+  kubectl get secret --namespace default -l app.kubernetes.io/component=admin-secret -o jsonpath="{.items[0].data.admin-password}" | base64 --decode ; echo
+
+
+Visit https://github.com/prometheus-operator/kube-prometheus for instructions on how to create & configure Alertmanager and Prometheus instances using the Operator.
+ubuntu@ip-172-31-25-141:~$ 
+
+kubectl get pods -n default | grep prometheus
+<img width="1176" height="179" alt="image" src="https://github.com/user-attachments/assets/c16b613e-0861-4633-8888-9fd9686eea0b" />
+
+
+
+sudo mkdir -p k8s-health-checker/manifests/monitoring
+
+sudo nano k8s-health-checker/manifests/monitoring/podmonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: health-checker
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: health-checker
+  podMetricsEndpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+
+kubectl apply -f k8s-health-checker/manifests/monitoring/podmonitor.yaml
 
 **Validations/Testing**
 List all namespaces
