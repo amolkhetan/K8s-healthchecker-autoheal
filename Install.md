@@ -1,4 +1,4 @@
-****Sprint 1****
+<img width="1916" height="293" alt="image" src="https://github.com/user-attachments/assets/c61ff424-39fd-481e-b8af-3c45a6a2b67d" />****Sprint 1****
 
 **Cluster Set Up**
 
@@ -151,28 +151,39 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: health-checker
-  namespace: kube-system
+  namespace: default
 
 
 sudo nano k8s-health-checker/manifests/rbac/cluster-role-binding.yaml
-kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: health-checker-role
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
 metadata:
   name: health-checker-binding
+roleRef:
+  kind: ClusterRole
+  name: health-checker-role
+  apiGroup: rbac.authorization.k8s.io
 subjects:
 - kind: ServiceAccount
   name: health-checker
-  namespace: kube-system
-roleRef:
-  kind: ClusterRole
-  name: cluster-admin
-  apiGroup: rbac.authorization.k8s.io
-
+  namespace: default
   kubectl apply -f manifests/rbac/
+
 
   mkdir -p  k8s-health-checker/pkg/client/
   sudo nano client.go
-import (
+  
+  import (
   "context"
   "k8s.io/client-go/kubernetes"
   "k8s.io/client-go/rest"
@@ -184,7 +195,75 @@ func getClient() *kubernetes.Clientset {
   return clientset
 }
 
-  
+
+mkdir -p  k8s-health-checker/cmd/
+  sudo nano main.go
+
+import (
+  "context"
+  "k8s.io/client-go/kubernetes"
+  "k8s.io/client-go/rest"
+)
+
+func getClient() *kubernetes.Clientset {
+  config, _ := rest.InClusterConfig()
+  clientset, _ := kubernetes.NewForConfig(config)
+  return clientset
+}
+ubuntu@ip-172-31-25-141:~/k8s-health-checker/pkg$ cd ../cmd/
+ubuntu@ip-172-31-25-141:~/k8s-health-checker/cmd$ ls
+main.go
+ubuntu@ip-172-31-25-141:~/k8s-health-checker/cmd$ cat main.go
+package main
+
+import (
+    "log"
+    "time"
+
+    "github.com/amolkhetan/k8s-health-checker/pkg/client"
+)
+
+func main() {
+    for {
+        if err := client.TestKubeAPI(); err != nil {
+            log.Printf("❌ API test failed: %v", err)
+        } else {
+            log.Println("✅ API test succeeded")
+        }
+
+        time.Sleep(30 * time.Second)
+    }
+}
+
+cd ../../
+sudo nano Dockerfile
+
+ubuntu@ip-172-31-25-141:~/k8s-health-checker$ cat Dockerfile 
+FROM golang:latest
+
+WORKDIR /app
+COPY . .
+
+RUN go mod tidy
+RUN go build -o health-checker ./cmd/main.go
+
+CMD ["./health-checker"]
+
+
+sudo snap install docker
+
+sudo groupadd docker
+sudo usermod -aG docker $USER
+newgrp docker
+
+sudo docker build -t amolkhetan/k8s-health-checker:latest .
+
+sudo docker login -u
+
+sudo docker push amolkhetan/k8s-health-checker:latest
+
+kubectl apply -f manifests/rbac/
+kubectl apply -f manifests/deployment.yaml
 
 sudo snap install helm --classic
 
@@ -237,8 +316,8 @@ spec:
 
 kubectl apply -f k8s-health-checker/manifests/monitoring/podmonitor.yaml
 
-**Validations/Testing**
-List all namespaces
+*****Validations/Testing*****
+**List all namespaces**
 <img width="662" height="162" alt="image" src="https://github.com/user-attachments/assets/584e1abe-88d4-4ab4-8209-90839fcade20" />
 
 list pods in kube-system
@@ -249,8 +328,31 @@ kubectl get pods -n kube-system
 kubectl get pods -n kube-flannel
 <img width="1915" height="387" alt="image" src="https://github.com/user-attachments/assets/07403e67-46b3-4f73-97dd-0a43b1d23558" />
 
-Prometheus:
-Run 
+**Prometheus:**
+kubectl get pods -n default | grep prometheus (to ensure that prometheus svc is up and running)
+
+kubectl port-forward svc/monitoring-kube-prometheus-prometheus 9090:9090 
+
+ ssh -i ~/Downloads/Amol-ec2.pem -L 9090:localhost:9090 ubuntu@35.91.100.196 (run on laptop bash with public ip)
+
+ http://localhost:9090
+ 
+ <img width="1905" height="675" alt="image" src="https://github.com/user-attachments/assets/61017873-f7d5-4c7f-9e89-4af5b89f2e0a" />
+
+ <img width="1912" height="651" alt="image" src="https://github.com/user-attachments/assets/dc2f0aec-0bc2-4f15-a215-07d4b8adce81" />
+
+ <img width="1911" height="941" alt="image" src="https://github.com/user-attachments/assets/230b5939-c7be-4917-9ac7-ad1ad7f6645e" />
+
+ <img width="1906" height="913" alt="image" src="https://github.com/user-attachments/assets/07149217-056f-4f4a-9df4-ac79e7f94d33" />
+
+
+
+API Test
+
+<img width="1916" height="293" alt="image" src="https://github.com/user-attachments/assets/c632042a-4df6-4aa8-8e22-38743fa86173" />
+
+
+
 kubectl port-forward svc/monitoring-kube-prometheus-prometheus 9090:9090 -n default
 
 access it on localhost:9090
