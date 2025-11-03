@@ -407,3 +407,107 @@ helm upgrade monitoring prometheus-community/kube-prometheus-stack \
    kubectl port-forward svc/monitoring-grafana 3000:80
 
    <img width="1919" height="636" alt="image" src="https://github.com/user-attachments/assets/8851095a-c1e7-4e6a-b0ef-7d8983ea5471" />
+
+
+**Sprint 2**
+
+
+✅ Final Changes to Bring Up Grafana UI on EC2
+1. Initial Attempt via NodePort (Failed)
+•	Patched Grafana service to use NodePort: 
+•	kubectl patch svc monitoring-grafana -n default \
+•	  -p '{"spec": {"type": "NodePort", "ports": [{"port": 80, "targetPort": 3000, "nodePort": 32000}]}}'
+•	Verified service and public IP: 
+•	kubectl get svc
+•	curl http://169.254.169.254/latest/meta-data/public-ipv4
+•	But curl http://<public-ip>:32000 failed — no listener on port 32000.
+________________________________________
+2. Diagnosed NodePort Failure
+•	Confirmed Grafana pod was healthy and exposed port 3000.
+•	Verified service selector matched pod labels.
+•	Ran internal test pod to access service — DNS resolution failed.
+•	Checked EC2 node:
+•	sudo ss -tuln | grep 32000
+→ No listener.
+•	Inspected kube-proxy and iptables:
+•	ps aux | grep kube-proxy
+•	iptables -t nat -L KUBE-NODEPORTS -n --line-numbers | grep 32000
+→ KUBE-NODEPORTS chain missing.
+________________________________________
+3. Attempted HostPort Exposure via Helm Deployment (Failed)
+•	Patched Grafana deployment: 
+•	ports:
+•	  - containerPort: 3000
+•	    hostPort: 3000
+•	    name: grafana
+•	env:
+•	  - name: GF_SERVER_HTTP_ADDR
+•	    value: "0.0.0.0"
+•	Restarted pod, confirmed pod was on same node.
+•	Verified GF_SERVER_HTTP_ADDR=0.0.0.0 inside pod.
+•	But still no listener on host (ss -tuln | grep 3000 returned nothing).
+________________________________________
+4. Root Cause Identified
+•	Helm deployment included multiple containers → hostPort ignored.
+•	Grafana was listening on :::3000 (IPv6 wildcard), not 0.0.0.0.
+________________________________________
+5. Final Fix: Standalone Deployment with HostPort
+Created a minimal Grafana deployment:
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-hostport
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana-hostport
+  template:
+    metadata:
+      labels:
+        app: grafana-hostport
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:latest
+          ports:
+            - containerPort: 3000
+              hostPort: 3000
+          env:
+            - name: GF_SERVER_HTTP_ADDR
+              value: "0.0.0.0"
+Applied it:
+kubectl apply -f grafana-hostport.yaml
+Verified:
+sudo ss -tuln | grep 3000
+curl http://<public-ip>:3000
+✅ Grafana UI successfully loaded.
+
+**Testing for sprint 2**
+
+**kubectl get nodes**
+<img width="1288" height="89" alt="image" src="https://github.com/user-attachments/assets/0eaac03a-d9a8-47a4-918f-b0f8c8bb8cca" />
+
+**kubectl get pods --all-namespaces**
+<img width="1917" height="604" alt="image" src="https://github.com/user-attachments/assets/9ebb43b5-ab17-4afc-823c-f629b3a90011" />
+
+
+1. kubectl port-forward svc/monitoring-kube-prometheus-prometheus 9090:9090 (EC2)
+2. ssh -i ~/Downloads/Amol-ec2.pem -L 9090:localhost:9090 ubuntu@35.91.100.196 (Local)
+<img width="1909" height="1035" alt="image" src="https://github.com/user-attachments/assets/8aa51e72-fcbf-4104-a7a0-04c13d9e9936" />
+
+<img width="1910" height="939" alt="image" src="https://github.com/user-attachments/assets/9370fb7a-7d28-49fd-a478-626986f7c07e" />
+
+<img width="1919" height="686" alt="image" src="https://github.com/user-attachments/assets/5667932a-4662-466e-b537-fd99bd607bca" />
+
+<img width="1913" height="686" alt="image" src="https://github.com/user-attachments/assets/4d3751c8-db55-4f5e-84fd-013d1697c269" />
+
+<img width="1919" height="960" alt="image" src="https://github.com/user-attachments/assets/dead2334-ed9c-488d-a4c8-fb16e7c96726" />
+
+Grafana (publicip:3000)
+
+<img width="1913" height="1028" alt="image" src="https://github.com/user-attachments/assets/3bfcba62-66d5-436e-a602-05a8e2ee6b06" />
+
+
+
