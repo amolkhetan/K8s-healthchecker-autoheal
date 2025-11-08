@@ -1,10 +1,17 @@
-<img width="1916" height="293" alt="image" src="https://github.com/user-attachments/assets/c61ff424-39fd-481e-b8af-3c45a6a2b67d" />****Sprint 1****
+<img width="1916" height="293" alt="image" src="https://github.com/user-attachments/assets/c61ff424-39fd-481e-b8af-3c45a6a2b67d" />
+
+******Sprint 1******
 
 **Cluster Set Up**
 
-**Master Node**
-1. Install EC2 machine using Ubuntu 22.04 (base image ami-03c1f788292172a4e)
-<img width="940" height="267" alt="image" src="https://github.com/user-attachments/assets/af3b3452-e847-4ec1-a76d-e35c546e8d0c" />
+**Nodes SetUp**
+1. Launch 3 EC2 machine using Ubuntu 22.04 (base image ami-03c1f788292172a4e / 10 GB) (1 master and 2 worker)
+  
+  base image used
+
+  <img width="940" height="267" alt="image" src="https://github.com/user-attachments/assets/af3b3452-e847-4ec1-a76d-e35c546e8d0c" />
+
+  ![alt text](image-1.png)
 
 2. 🧱Run below commands
    sudo apt update && sudo apt upgrade -y
@@ -15,7 +22,7 @@
    
    sudo sed -i '/swap/d' /etc/fstab
    
-4. 📦Install containerd (Applicable for all nodes)
+3. 📦Install containerd (Applicable for all nodes)
    sudo apt install -y containerd
    
    sudo mkdir -p /etc/containerd
@@ -28,26 +35,34 @@
 
    sudo systemctl enable containerd
    
-6. 🧠Kernel Modules + Sysctl (Applicable for all nodes)
+4. 🧠Kernel Modules + Sysctl (Applicable for all nodes)
    cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+
    overlay
+
    br_netfilter
+
    EOF
 
+   
    sudo modprobe overlay
    
    sudo modprobe br_netfilter
 
    cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+
    net.bridge.bridge-nf-call-iptables  = 1
+
    net.ipv4.ip_forward                 = 1
+
    net.bridge.bridge-nf-call-ip6tables = 1
+
    EOF
 
    sudo sysctl --system
 
 
-8. 🔧 Install Kubernetes Components (Applicable for all nodes)
+5. 🔧 Install Kubernetes Components (Applicable for all nodes)
    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | \
    gpg --dearmor | sudo tee /etc/apt/keyrings/kubernetes-apt-keyring.gpg > /dev/null
 
@@ -58,7 +73,7 @@
    sudo apt install -y kubelet kubeadm kubectl
    sudo apt-mark hold kubelet kubeadm kubectl
 
- 9. 🚦 Master Node Initialization
+ 6. 🚦 **Master Node Initialization**
     sudo kubeadm init --pod-network-cidr=10.244.0.0/16
 
     Post-init setup:
@@ -66,15 +81,24 @@
     sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
     sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
-10. 🌐 Pod Network (Flannel CNI)
+ 7. 🌐 Pod Network (Flannel CNI)
     kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+    ![alt text](image-2.png)
 
    AMI created for master is ami-07cd7e2b91f9e1923
    <img width="1625" height="339" alt="image" src="https://github.com/user-attachments/assets/8457d70f-a67c-45c6-aefb-926e94002d09" />
 
 
-11. Create and Add Worker Node
-   Repeat all Steps from 1-8 and the run step 11.
+8. **Create and Add Worker Node**
+   Repeat all Steps from 1-5 and the run step 8.
+
+  sudo kubeadm join 172.31.36.143:6443 --token 8qf6he.3ghxkkgbr47ly1jj \
+  --discovery-token-ca-cert-hash sha256:084ec133d4b7870c1f96a1a74a6161e5cf0b3b94e73d9bf2e7f173c2123ada83
+
+  ![alt text](image-3.png)
+
+  ![alt text](image-4.png)
 
 AMI **ami-05540aeb6ec68ed3c** created for node which can we used for master or worker, according will need to run init or join comand after ec2 is launched.
 <img width="1606" height="258" alt="image" src="https://github.com/user-attachments/assets/908e3765-7248-4e62-a919-ce742925a9ff" />
@@ -137,118 +161,40 @@ k8s-health-checker/
 ├── go.mod / requirements.txt
 └── README.md
 
+sudo apt install tree
+
+![alt text](image-8.png)
+
+
 Initialize 
 cd ~/k8s-health-checker
 
 git init
 
-sudo snap install go --classic
+**GO SetUp**
+sudo apt update
+sudo apt install golang-go
 
+Verify using:
+which go
+go version
+
+Set Up Go Project Directory:
+mkdir -p ~/go/src/github.com/amolkhetan/k8s-health-checker
+cd ~/go/src/github.com/amolkhetan/k8s-health-checker
+
+Initialize Go Module:
 go mod init github.com/your-org/k8s-health-checker
 
-sudo nano k8s-health-checker/manifests/rbac/service-account.yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: health-checker
-  namespace: default
 
+Organize Code Structure
+mkdir -p cmd pkg/client
+mv main.go cmd/
+mv client.go pkg/client/
 
-sudo nano k8s-health-checker/manifests/rbac/cluster-role-binding.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: health-checker-role
-rules:
-- apiGroups: [""]
-  resources: ["nodes"]
-  verbs: ["get", "list", "watch"]
-
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: health-checker-binding
-roleRef:
-  kind: ClusterRole
-  name: health-checker-role
-  apiGroup: rbac.authorization.k8s.io
-subjects:
-- kind: ServiceAccount
-  name: health-checker
-  namespace: default
-  kubectl apply -f manifests/rbac/
-
-
-  mkdir -p  k8s-health-checker/pkg/client/
-  sudo nano client.go
-  
-  import (
-  "context"
-  "k8s.io/client-go/kubernetes"
-  "k8s.io/client-go/rest"
-)
-
-func getClient() *kubernetes.Clientset {
-  config, _ := rest.InClusterConfig()
-  clientset, _ := kubernetes.NewForConfig(config)
-  return clientset
-}
-
-
-mkdir -p  k8s-health-checker/cmd/
-  sudo nano main.go
-
-import (
-  "context"
-  "k8s.io/client-go/kubernetes"
-  "k8s.io/client-go/rest"
-)
-
-func getClient() *kubernetes.Clientset {
-  config, _ := rest.InClusterConfig()
-  clientset, _ := kubernetes.NewForConfig(config)
-  return clientset
-}
-ubuntu@ip-172-31-25-141:~/k8s-health-checker/pkg$ cd ../cmd/
-ubuntu@ip-172-31-25-141:~/k8s-health-checker/cmd$ ls
-main.go
-ubuntu@ip-172-31-25-141:~/k8s-health-checker/cmd$ cat main.go
-package main
-
-import (
-    "log"
-    "time"
-
-    "github.com/amolkhetan/k8s-health-checker/pkg/client"
-)
-
-func main() {
-    for {
-        if err := client.TestKubeAPI(); err != nil {
-            log.Printf("❌ API test failed: %v", err)
-        } else {
-            log.Println("✅ API test succeeded")
-        }
-
-        time.Sleep(30 * time.Second)
-    }
-}
-
-cd ../../
-sudo nano Dockerfile
-
-ubuntu@ip-172-31-25-141:~/k8s-health-checker$ cat Dockerfile 
-FROM golang:latest
-
-WORKDIR /app
-COPY . .
-
-RUN go mod tidy
-RUN go build -o health-checker ./cmd/main.go
-
-CMD ["./health-checker"]
-
+build Binary:
+go mod tidy
+go build -o health-checker ./cmd
 
 sudo snap install docker
 
@@ -256,14 +202,23 @@ sudo groupadd docker
 sudo usermod -aG docker $USER
 newgrp docker
 
-sudo docker build -t amolkhetan/k8s-health-checker:latest .
+Build Docker File
+sudo nano Dockerfile
+docker build -t k8s-health-checker .
+docker tag k8s-health-checker amolkhetan/k8s-health-checker:latest
+docker push amolkhetan/k8s-health-checker:latest
 
-sudo docker login -u
+sudo nano k8s-health-checker/manifests/rbac/service-account.yaml
+sudo nano k8s-health-checker/manifests/rbac/cluster-role-binding.yaml
 
-sudo docker push amolkhetan/k8s-health-checker:latest
 
 kubectl apply -f manifests/rbac/
 kubectl apply -f manifests/deployment.yaml
+kubectl apply -f manifests/deployment.yaml
+kubectl apply -f manifests/deployment.yaml
+
+
+
 
 sudo snap install helm --classic
 

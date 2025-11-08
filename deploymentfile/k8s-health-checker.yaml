@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: health-checker-sa
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: health-checker-role
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: health-checker-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: health-checker-role
+subjects:
+  - kind: ServiceAccount
+    name: health-checker-sa
+    namespace: default
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-health-checker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-health-checker
+  template:
+    metadata:
+      labels:
+        app: k8s-health-checker
+    spec:
+      serviceAccountName: health-checker-sa
+      containers:
+        - name: checker
+          image: amolkhetan/k8s-health-checker:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
