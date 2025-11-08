@@ -222,6 +222,105 @@ kubectl apply -f manifests/deployment.yaml
 
 sudo snap install helm --classic
 
+**Install Prometheus**
+
+wget https://github.com/prometheus/prometheus/releases/download/v2.50.1/prometheus-2.50.1.linux-amd64.tar.gz
+
+tar -xvf prometheus-2.50.1.linux-amd64.tar.gz
+
+cd prometheus-2.50.1.linux-amd64
+
+sudo mv prometheus promtool /usr/local/bin/
+
+sudo mkdir -p /etc/prometheus /var/lib/prometheus
+
+sudo cp -r consoles console_libraries /etc/prometheus/
+
+sudo nano /etc/prometheus/prometheus.yml
+
+
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
+sudo systemctl enable prometheus
+sudo systemctl start prometheus
+
+
+**Node Exporter (EC2 Metrics)**
+wget https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz
+
+tar -xvf node_exporter-1.7.0.linux-amd64.tar.gz
+
+cd node_exporter-1.7.0.linux-amd64
+
+sudo mv node_exporter /usr/local/bin/
+
+sudo nano /etc/systemd/system/node_exporter.service
+
+sudo systemctl daemon-reload
+sudo systemctl enable node_exporter
+sudo systemctl start node_exporter
+
+Now, install node exporters on all nodes
+
+wget https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz
+tar -xvf node_exporter-1.7.0.linux-amd64.tar.gz
+sudo mv node_exporter-1.7.0.linux-amd64/node_exporter /usr/local/bin/
+
+sudo useradd -rs /bin/false node_exporter
+
+cat <<EOF | sudo tee /etc/systemd/system/node_exporter.service
+[Unit]
+Description=Node Exporter
+After=network.target
+
+[Service]
+User=node_exporter
+ExecStart=/usr/local/bin/node_exporter
+
+[Install]
+WantedBy=default.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable node_exporter
+sudo systemctl start node_exporter
+
+Now test Prometheus.
+
+**Alertmanager (Slack Notifications)**
+
+wget https://github.com/prometheus/alertmanager/releases/download/v0.27.0/alertmanager-0.27.0.linux-amd64.tar.gz
+tar -xvf alertmanager-0.27.0.linux-amd64.tar.gz
+cd alertmanager-0.27.0.linux-amd64
+sudo mv alertmanager amtool /usr/local/bin/
+sudo mkdir -p /etc/alertmanager /var/lib/alertmanager
+
+sudo nano /etc/alertmanager/alertmanager.yml
+sudo nano /etc/systemd/system/alertmanager.service
+
+sudo systemctl daemon-reload
+sudo systemctl enable alertmanager
+sudo systemctl start alertmanager
+
+**Grafana (Dashboard UI)**
+
+sudo apt install -y apt-transport-https software-properties-common
+sudo wget -q -O /usr/share/keyrings/grafana.key https://apt.grafana.com/gpg.key
+echo "deb [signed-by=/usr/share/keyrings/grafana.key] https://apt.grafana.com stable main" | \
+
+sudo tee /etc/apt/sources.list.d/grafana.list
+sudo apt update
+sudo apt install grafana
+
+
+sudo systemctl enable grafana-server
+sudo systemctl start grafana-server
+
+URL : http://localhost:9090
+
+
+
+
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 helm install monitoring prometheus-community/kube-prometheus-stack
