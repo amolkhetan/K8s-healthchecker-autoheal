@@ -323,7 +323,7 @@ URL : http://localhost:9090
 ✅ 1. Implement Pod Restart & Rescheduling Based on Health Checks
 🔧 A. Use Liveness Probes for Auto-Restart
 
-Update your pod spec or Helm chart:
+Update deployment yaml file to add:
 livenessProbe:
   httpGet:
     path: /healthz
@@ -352,6 +352,21 @@ Prevents traffic until the pod is ready.
     kubectl exec -n slabai <pod-name> -- kill 1 (or run crashlooping pod)
     This kills the main process, triggering a restart if probes are set.
 
+    Crash-looping pod is induced for testing purpose via crash-pod.yaml
+    This was cleaned up by cleanup job deployed via pod-cleanup.yml which runs like at desired interval.
+
+    ![alt text](image-23.png)
+
+    ![alt text](image-24.png)
+   
+    ![alt text](image-25.png)
+
+    ![alt text](image-21.png)
+
+    ![alt text](image-26.png)
+
+    ![alt text](image-22.png)
+
     ![alt text](image-16.png)
     
     ![alt text](image-17.png)    
@@ -360,6 +375,162 @@ Prevents traffic until the pod is ready.
 🔧 B. Observe Recovery
     kubectl get pods -n slabai -w
     Watch for pod restart and rescheduling.
+
+✅ 4. Log Actions for Auditing
+    Logs of clean activities are being stored on pv. This pv can be accessby pvc accessor.
+    kubectl exec -it -n slabai pvc-accessor -- sh
+    path is /logs
+
+******🚀 Sprint 4 Execution Plan: Advanced Self-Healing******
+
+****🧩 1. Automatic Node Scaling (Cluster Autoscaler)****
+
+**Goal: Dynamically add/remove nodes based on pending pods and resource pressure.**
+
+⚙️ 1. Enable Node Autoscaling with Cluster Autoscaler
+
+- Install Cluster Autoscaler:
+
+helm repo add autoscaler https://kubernetes.github.io/autoscaler
+helm install cluster-autoscaler autoscaler/cluster-autoscaler \
+  --namespace kube-system \
+  --set cloudProvider=aws \
+  --set autoDiscovery.clusterName=<your-cluster-name> \
+  --set awsRegion=<your-region>
+
+- Tag your ASG:
+
+k8s.io/cluster-autoscaler/enabled = true
+k8s.io/cluster-autoscaler/<your-cluster-name> = owned
+
+- IAM Permissions:
+Ensure the node IAM role has permissions for EC2 Auto Scaling (e.g., autoscaling:DescribeAutoScalingGroups, autoscaling:SetDesiredCapacity).
+
+📈 2. Configure Horizontal Pod Autoscaler (HPA)
+- Install metrics-server:
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+- Add resource requests to your deployments:
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+
+- Create HPA:
+kubectl autoscale deployment <your-deployment> \
+  --cpu-percent=50 --min=2 --max=10
+
+- Monitor:
+kubectl get hpa
+kubectl top pods
+
+🧠 3. Implement Resource Balancing
+- Pod Anti-Affinity
+
+affinity:
+   podAntiAffinity:
+     requiredDuringSchedulingIgnoredDuringExecution:
+       - labelSelector:
+           matchExpressions:
+             - key: app
+               operator: In
+               values:
+                 - your-app
+         topologyKey: "kubernetes.io/hostname"
+
+- Taints and Tolerations: Use to steer workloads away from overloaded nodes.
+- PriorityClasses: Ensure critical pods are scheduled first.
+- Eviction Simulation:
+kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data
+
+🔬 4. Simulate Load to Test Autoscaling
+kubectl run loadgen --image=busybox -- /bin/sh -c "while true; do wget -q -O- http://<service>; done"
+
+- stress-ng:
+kubectl run stress --image=alpine/stress -- stress --cpu 2 --timeout 300s
+
+
+******🚨 Sprint 5 Execution Plan: Alerting & Notification System******
+🧩 1. Install Alertmanager (if not already installed)
+This is already installed.
+
+📣 2. Integrate Slack or Microsoft Teams
+
+✅ Slack Integration
+1.	Create a Slack Incoming Webhook:
+Create Slack account
+![alt text](image-27.png)
+
+Webhook linked created and copied in alertmanager.yml
+
+🧰 Step-by-Step: Create Slack Webhook URL
+✅ 1. Go to Slack App Management
+•	Visit: https://api.slack.com/apps
+•	Click “Create New App”
+•	Choose From scratch
+•	Name your app (e.g., AlertmanagerBot) and select your workspace
+________________________________________
+✅ 2. Enable Incoming Webhooks
+•	In the app dashboard, go to Features → Incoming Webhooks
+•	Toggle Activate Incoming Webhooks to On
+________________________________________
+✅ 3. Add a Webhook to a Channel
+•	Scroll down and click “Add New Webhook to Workspace”
+•	Choose the channel (e.g., #alerts) where you want notifications
+•	Click Allow
+________________________________________
+✅ 4. Copy the Webhook URL
+•	After approval, Slack will generate a URL like: 
+•	
+•	Copy this URL — you'll use it in Alertmanager’s config
+________________________________________
+✅ 5. Secure and Store It
+•	Treat this URL like a secret
+•	Store it in a Kubernetes Secret or external vault if needed
+
+
+2. Restart Alertmanager
+
+3. Test Alerts and Notifications
+![alt text](image-28.png)
+
+
+Sprint 6
+
+✅ Install Grafana
+  Already installed
+
+Accessed via To complete Sprint 6: Web Dashboard and Project Documentation, you’ll deploy Grafana, integrate Prometheus metrics and Alertmanager logs, and document the entire system for real-world readiness. Here's your step-by-step execution plan:
+
+📊 1. Deploy Grafana Dashboard
+✅ Install Grafana via Helm:
+
+✅ Get Grafana Login Info:
+
+✅ Port-forward or expose:
+
+Access via: http://<public-ip of master node>:3000
+
+📈 2. Integrate Prometheus & Alertmanager
+
+✅ Add Prometheus as a Data Source:
+- Login to Grafana
+- Go to Settings → Data Sources → Add data source
+- Choose Prometheus
+- Set URL to: http://localhost:9090/ (prometheus and Grafana on same host)
+
+![alt text](image-29.png)
+
+✅ Import Dashboards:
+- Go to Dashboards → Import
+- Use IDs like:
+- 1860: Kubernetes cluster monitoring
+- 315: Node Exporter Full
+- 11074: Alertmanager
+
+![alt text](image-30.png)
+
+![alt text](image-31.png)
 
 
 
