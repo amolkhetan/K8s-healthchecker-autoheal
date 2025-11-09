@@ -318,9 +318,52 @@ sudo systemctl start grafana-server
 
 URL : http://localhost:9090
 
+**Sprint 3**
+
+✅ 1. Implement Pod Restart & Rescheduling Based on Health Checks
+🔧 A. Use Liveness Probes for Auto-Restart
+
+Update your pod spec or Helm chart:
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8080 #change as per service port
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  failureThreshold: 3
+This triggers a container restart if /healthz fails repeatedly.
+
+🔧 B. Use Readiness Probes to Control Traffic
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080 #change as per service port
+  initialDelaySeconds: 5
+  periodSeconds: 10
+Prevents traffic until the pod is ready.
+
+✅ 2. Automate Cleanup of Failed Pods
+🔧 A. Script to Delete CrashLoopBackOff and Evicted Pods
+      File is attached/present in templates
+      Run this via cron or systemd timer.
+
+✅ 3. Test Self-Healing in Staging
+🔧 A. Simulate Failure
+    kubectl exec -n slabai <pod-name> -- kill 1 (or run crashlooping pod)
+    This kills the main process, triggering a restart if probes are set.
+
+    ![alt text](image-16.png)
+    
+    ![alt text](image-17.png)    
+
+    ![alt text](image-18.png)
+🔧 B. Observe Recovery
+    kubectl get pods -n slabai -w
+    Watch for pod restart and rescheduling.
 
 
 
+====
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 helm install monitoring prometheus-community/kube-prometheus-stack

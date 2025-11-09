@@ -30,3 +30,9 @@ Grafana
 ![alt text](image-14.png)
 
 ![alt text](image-15.png)
+
+
+Pods Cleanup and logging
+![alt text](image-19.png)
+
+![alt text](image-20.png)
