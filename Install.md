@@ -1,5 +1,3 @@
-<img width="1916" height="293" alt="image" src="https://github.com/user-attachments/assets/c61ff424-39fd-481e-b8af-3c45a6a2b67d" />
-
 ********Sprint 1********
 
 **Cluster Set Up**
@@ -541,5 +539,15 @@ Access via: http://<public-ip of master node>:3000
 2. Ansible to configure EC2 nodes
 
 **Troubleshoting**
-1. Pod issues
+1. To check pod issues
    kubectl logs <pod> -n <namespace>
+
+2. To check disk pressure
+
+   kubectl describe node ip-172-31-36-143 | grep -A5 Conditions
+   
+4. To make some space
+
+   docker container prune -f
+   
+   docker image prune -a -f
