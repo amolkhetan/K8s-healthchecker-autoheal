@@ -233,6 +233,7 @@ sudo cp -r consoles console_libraries /etc/prometheus/
 
 sudo nano /etc/prometheus/prometheus.yml
 
+Note: Scraping will happen based on scrape_configs defined in prometheus.yml
 
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
@@ -296,6 +297,9 @@ sudo nano /etc/systemd/system/alertmanager.service
 sudo systemctl daemon-reload
 sudo systemctl enable alertmanager
 sudo systemctl start alertmanager
+
+Note: 1. Whatever routes you set up in alertmanager.yml, alerts will be routed based on matchers, receivers and severity set
+      2. Alerts Rules folder/file needs to be copied in prometheus folder and should be there in prometheus.yml
 
 **Grafana (Dashboard UI)**
 
