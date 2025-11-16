@@ -1,0 +1,17 @@
+groups:
+- name: node-recordings
+  interval: 1m
+  rules:
+  - record: node:cpu_utilization:avg5m
+    expr: |
+      100 * (1 - avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))
+  - record: node:mem_utilization
+    expr: |
+      100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))
+  - record: node:fs_utilization:root
+    expr: |
+      100 * (1 - (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} 
+                  / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}))
+  - record: node:load5_per_cpu
+    expr: |
+      node_load5 / count without (cpu, mode) (node_cpu_seconds_total{mode="idle"})

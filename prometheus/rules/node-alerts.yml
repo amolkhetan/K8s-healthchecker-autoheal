@@ -1,0 +1,64 @@
+groups:
+- name: node-alerts
+  rules:
+  - alert: InstanceDown
+    expr: up{job="node-exporter"} == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Node down: {{ $labels.instance }}"
+      description: "Node exporter is not reachable for 5m."
+
+  - alert: HighCPU
+    expr: node:cpu_utilization:avg5m > 85
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High CPU on {{ $labels.instance }}"
+      description: "CPU > 85% for 10m (avg)."
+
+  - alert: MemoryPressure
+    expr: node:mem_utilization > 90
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High memory usage on {{ $labels.instance }}"
+      description: "Memory utilization > 90% for 10m."
+
+  - alert: DiskAlmostFullRoot
+    expr: node:fs_utilization:root > 90
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Disk almost full on {{ $labels.instance }} /"
+      description: "Root filesystem > 90% used."
+
+  - alert: HighLoad
+    expr: node:load5_per_cpu > 1.5
+    for: 15m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High load on {{ $labels.instance }}"
+      description: "Load5 per CPU > 1.5 for 15m (CPU saturation likely)."
+
+  - alert: FilesystemReadOnly
+    expr: node_filesystem_readonly{fstype!~"tmpfs|overlay"} == 1
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Filesystem read-only on {{ $labels.instance }}"
+      description: "A filesystem is read-only; check disk/LVM/RAID errors."
+
+  - alert: RecentReboot
+    expr: time() - node_boot_time_seconds < 300
+    labels:
+      severity: info
+    annotations:
+      summary: "{{ $labels.instance }} rebooted"
+      description: "Node rebooted in last 5 minutes."

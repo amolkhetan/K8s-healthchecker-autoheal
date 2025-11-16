@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pod-alerts
+  labels:
+    role: alert-rules
+    prometheus: kube-prometheus
+data:
+  pod-alerts.yml: |
+    groups:
+    - name: pod-health
+      rules:
+      - alert: PodNotReady
+        expr: kube_pod_status_ready{condition="false"} > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pod {{ $labels.pod }} is not ready"
+          description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is not in Ready state."

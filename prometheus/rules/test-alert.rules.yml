@@ -1,0 +1,11 @@
+groups:
+  - name: test.rules
+    rules:
+      - alert: AlwaysFiring
+        expr: vector(1)
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Test alert firing"
+          description: "This is a simulated alert to test Alertmanager delivery"

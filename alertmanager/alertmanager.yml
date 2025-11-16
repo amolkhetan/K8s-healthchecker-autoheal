@@ -1,0 +1,39 @@
+route:
+  receiver: "default"
+  group_by: ["alertname", "instance"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 2h
+  routes:
+  - matchers:
+    - severity="critical"
+    receiver: "default" #"slack-critical"
+  - matchers:
+    - severity="warning"
+    receiver: "default"
+
+receivers:
+- name: "default"
+  email_configs:
+    - to: "amol.khetan@gmail.com"
+      from: "amol.khetan@gmail.com"
+      smarthost: "smtp.gmail.com:587"
+      auth_username: "amol.khetan@gmail.com"
+      auth_password_file: "/etc/alertmanager/gmail_app_password.txt"
+      auth_identity: "amol.khetan@gmail.com"
+      require_tls: true
+
+
+
+- name: "slack-critical"
+  slack_configs:
+  - send_resolved: true
+    api_url: "https://hooks.slack.com/services/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"
+    #"https://hooks.slack.com/services/REPLACE/ME/WITH_WEBHOOK"
+    channel: "#all-devops"
+    title: "{{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})"
+    text: >-
+      *Alerts:* {{ range .Alerts }}
+      • *{{ .Annotations.summary }}* on `{{ .Labels.instance }}`  
+        {{ .Annotations.description }}
+      {{ end }}
