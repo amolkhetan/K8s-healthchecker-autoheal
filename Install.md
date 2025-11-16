@@ -217,6 +217,10 @@ kubectl apply -f manifests/deployment.yaml
 
 sudo snap install helm --classic
 
+**Pod Status**
+<img width="2815" height="900" alt="image" src="https://github.com/user-attachments/assets/522a1512-57da-4931-978a-30253f0e7a47" />
+
+
 **Install Prometheus**
 
 wget https://github.com/prometheus/prometheus/releases/download/v2.50.1/prometheus-2.50.1.linux-amd64.tar.gz
