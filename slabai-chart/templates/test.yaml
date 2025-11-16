@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cleanup-test
+  namespace: slabai
+spec:
+  template:
+    spec:
+      serviceAccountName: pod-cleanup-sa
+      restartPolicy: Never
+      containers:
+        - name: cleaner
+          image: amolkhetan/alpine
+          imagePullPolicy: Always
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Cleanup script started at $(date) ==="
+              if ! command -v kubectl >/dev/null 2>&1; then
+                echo "ERROR: kubectl not found"
+                exit 1
+              fi
+
+              echo "kubectl version:"
+              kubectl version --client
+
+              echo "Scanning for unhealthy pods..."
+              kubectl get pods --all-namespaces --no-headers \
+              | awk '$4 == "CrashLoopBackOff" || $4 == "Evicted" {print $1, $2}' \
+              | while read ns pod; do
+                  echo "Deleting pod $pod in namespace $ns"
+                  kubectl delete pod $pod -n $ns
+              done
+
+              echo "=== Cleanup script finished at $(date) ==="

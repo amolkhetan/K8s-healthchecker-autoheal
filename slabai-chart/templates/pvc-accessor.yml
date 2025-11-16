@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-accessor
+  namespace: slabai
+spec:
+  containers:
+    - name: explorer
+      image: alpine
+      command: ["/bin/sh", "-c", "sleep 3600"]
+      volumeMounts:
+        - name: cleanup-logs
+          mountPath: /logs
+  volumes:
+    - name: cleanup-logs
+      persistentVolumeClaim:
+        claimName: cleanup-logs-pvc

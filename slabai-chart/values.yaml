@@ -1,0 +1,33 @@
+userservice:
+  replicas: 1
+  image:
+    repository: iampraveen6/userservice
+    tag: latest
+
+paymentservice:
+  replicas: 1
+  image:
+    repository: iampraveen6/paymentservice
+    tag: latest
+
+projectservice:
+  replicas: 1
+  image:
+    repository: iampraveen6/projectservice
+    tag: latest
+
+frontend:
+  replicas: 1
+  image:
+    repository: iampraveen6/frontend
+    tag: latest
+
+mongodb:
+  image:
+    repository: mongo
+    tag: 6.0
+
+redis:
+  image:
+    repository: redis
+    tag: 7.0

@@ -1,0 +1,59 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cleanup
+  namespace: slabai
+spec:
+  schedule: "*/60 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: pod-cleanup-sa
+          restartPolicy: OnFailure
+          containers:
+            - name: cleaner
+              image: amolkhetan/alpine
+              imagePullPolicy: Always
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  LOGDIR="/cleanup-logs"
+                  mkdir -p "$LOGDIR"
+                  TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
+                  LOGFILE="$LOGDIR/cleanup-${TIMESTAMP}.log"
+
+                  echo "=== Cleanup started at $(date) ===" >> "$LOGFILE"
+
+                  if ! command -v kubectl >/dev/null 2>&1; then
+                    echo "$(date) - ERROR: kubectl not found" >> "$LOGFILE"
+                    exit 1
+                  fi
+
+                  echo "$(date) - kubectl version:" >> "$LOGFILE"
+                  kubectl version --client >> "$LOGFILE" 2>&1 || echo "$(date) - kubectl version check failed" >> "$LOGFILE"
+
+                  echo "$(date) - Scanning for unhealthy pods..." >> "$LOGFILE"
+                  kubectl get pods --all-namespaces --no-headers |
+                  while read ns pod ready status rest; do
+                    echo "$(date) - Found pod $pod in namespace $ns with status $status" >> "$LOGFILE"
+                    if [ "$status" = "CrashLoopBackOff" ] || [ "$status" = "Evicted" ] || [ "$status" = "Error" ]; then
+                      echo "$(date) - Deleting pod $pod in namespace $ns (status: $status)" >> "$LOGFILE"
+                      kubectl delete pod "$pod" -n "$ns" >> "$LOGFILE" 2>&1 || echo "$(date) - Failed to delete $pod" >> "$LOGFILE"
+                    fi
+                  done
+
+                  echo "=== Cleanup finished at $(date) ===" >> "$LOGFILE"
+              volumeMounts:
+                - name: cleanup-logs
+                  mountPath: /cleanup-logs
+              securityContext:
+                runAsUser: 0
+                runAsGroup: 0
+                allowPrivilegeEscalation: true
+          volumes:
+            - name: cleanup-logs
+              persistentVolumeClaim:
+                claimName: cleanup-logs-pvc

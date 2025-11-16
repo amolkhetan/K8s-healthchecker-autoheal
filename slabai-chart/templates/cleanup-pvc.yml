@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cleanup-logs-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: standard
+  hostPath:
+    path: /home/ubuntu/go/src/github.com/amolkhetan/k8s-health-checker/cleanup-logs
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cleanup-logs-pvc
+  namespace: slabai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard
+  volumeName: cleanup-logs-pv

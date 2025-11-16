@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: userservice
+  namespace: slabai
+spec:
+  replicas: {{ .Values.userservice.replicas }}
+  selector:
+    matchLabels:
+      app: userservice
+  template:
+    metadata:
+      labels:
+        app: userservice
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "3000"
+    spec:
+      containers:
+        - name: userservice
+          image: "{{ .Values.userservice.image.repository }}:{{ .Values.userservice.image.tag }}"
+          imagePullPolicy: Always   # ✅ Correct placement
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          env:
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: slabai-secrets
+                  key: USERSERVICE_MONGO_URI
+            - name: PORT
+              valueFrom:
+                secretKeyRef:
+                  name: slabai-secrets
+                  key: USERSERVICE_PORT
+            - name: RAZORPAY_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: slabai-secrets
+                  key: USERSERVICE_RAZORPAY_KEY_ID
+            - name: RAZORPAY_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: slabai-secrets
+                  key: USERSERVICE_RAZORPAY_KEY_SECRET
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: slabai-secrets
+                  key: USERSERVICE_AWS_SECRET_ACCESS_KEY
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: slabai-secrets
+                  key: USERSERVICE_AWS_ACCESS_KEY_ID
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: slabai-secrets
+                  key: USERSERVICE_AWS_REGION
+            - name: S3_BUCKET_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: slabai-secrets
+                  key: USERSERVICE_S3_BUCKET_NAME
+            - name: DOWNLOAD_URL
+              valueFrom:
+                secretKeyRef:
+                  name: slabai-secrets
+                  key: USERSERVICE_DOWNLOAD_URL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: userservice
+  namespace: slabai
+spec:
+  selector:
+    app: userservice
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+  type: NodePort
