@@ -28,7 +28,8 @@ receivers:
 - name: "slack-critical"
   slack_configs:
   - send_resolved: true
-    api_url: "https://hooks.slack.com/services/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"
+    api_url: ${SLACK_WEBHOOK_URL}
+    #"https://hooks.slack.com/services/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"
     #"https://hooks.slack.com/services/REPLACE/ME/WITH_WEBHOOK"
     channel: "#all-devops"
     title: "{{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})"
